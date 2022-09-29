@@ -11,9 +11,7 @@ dataset = ray.data.read_csv("s3://anonymous@air-example-data/breast_cancer.csv")
 train_dataset, valid_dataset = dataset.train_test_split(test_size=0.3)
 
 # Create a test dataset by dropping the target column.
-test_dataset = valid_dataset.map_batches(
-    lambda df: df.drop("target", axis=1), batch_format="pandas"
-)
+test_dataset = valid_dataset.drop_columns(cols=["target"])
 # __air_generic_preprocess_end__
 
 # __air_tf_preprocess_start__
@@ -100,15 +98,13 @@ def train_loop_per_worker(config):
             ],
         )
 
-    results = []
     for _ in range(epochs):
         tf_dataset = to_tf_dataset(dataset=train_data, batch_size=batch_size)
-        history = multi_worker_model.fit(
+        multi_worker_model.fit(
             tf_dataset,
             callbacks=[KerasCallback()],
             verbose=0,
         )
-    return results
 
 
 num_features = len(train_dataset.schema().names) - 1

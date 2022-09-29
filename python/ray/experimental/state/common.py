@@ -3,7 +3,6 @@ from abc import ABC
 from dataclasses import dataclass, field, fields
 from enum import Enum, unique
 from typing import Dict, List, Optional, Set, Tuple, Union
-from urllib.parse import urlparse
 
 import ray
 import ray._private.ray_constants as ray_constants
@@ -305,6 +304,8 @@ class GetLogOptions:
             )
 
 
+# See the ActorTableData message in gcs.proto for all potential options that
+# can be included in this class.
 # TODO(sang): Replace it with Pydantic or gRPC schema (once interface is finalized).
 @dataclass(init=True)
 class ActorState(StateSchema):
@@ -334,6 +335,8 @@ class ActorState(StateSchema):
     name: Optional[str] = state_column(filterable=True)
     #: The pid of the actor. 0 if it is not created yet.
     pid: int = state_column(filterable=True)
+    #: The namespace of the actor.
+    ray_namespace: str = state_column(filterable=True)
     #: The runtime environment information of the actor.
     serialized_runtime_env: str = state_column(filterable=False, detail=True)
     #: The resource requirement of the actor.
@@ -451,20 +454,9 @@ class TaskState(StateSchema):
     name: str = state_column(filterable=True)
     #: The state of the task.
     #:
-    #: - NIL: We don't have a status for this task because we are not the owner or the
-    #:   task metadata has already been deleted.
-    #: - WAITING_FOR_DEPENDENCIES: The task is waiting for its dependencies
-    #:   to be created.
-    #: - SCHEDULED: All dependencies have been created and the task is
-    #:   scheduled to execute.
-    #:   It could be because the task is waiting for resources,
-    #:   runtime environmenet creation, fetching dependencies to the
-    #:   local node, and etc..
-    #: - FINISHED: The task finished successfully.
-    #: - WAITING_FOR_EXECUTION: The task is scheduled properly and
-    #:   waiting for execution. It includes time to deliver the task
-    #:   to the remote worker + queueing time from the execution side.
-    #: - RUNNING: The task that is running.
+    #: Refer to src/ray/protobuf/common.proto for a detailed explanation of the state
+    #: breakdowns and typical state transition flow.
+    #:
     scheduling_state: TypeTaskStatus = state_column(filterable=True)
     #: The type of the task.
     #:
@@ -937,9 +929,5 @@ def ray_address_to_api_server_url(address: Optional[str]) -> str:
                 "still alive."
             )
         )
-
-    # Add http protocol to API server URL if it doesn't
-    # already contain a protocol.
-    if not urlparse(api_server_url).scheme:
-        api_server_url = "http://" + api_server_url
-    return api_server_url.decode()
+    api_server_url = f"http://{api_server_url.decode()}"
+    return api_server_url

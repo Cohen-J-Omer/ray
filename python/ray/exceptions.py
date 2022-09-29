@@ -298,6 +298,7 @@ class RayActorError(RayError):
                     "The actor never ran - it was cancelled before it started running."
                 )
             self.error_msg = "\n".join(error_msg_lines)
+            self.actor_id = ActorID(cause.actor_id).hex()
 
     @property
     def actor_init_failed(self) -> bool:
@@ -364,6 +365,34 @@ class OutOfDiskError(RayError):
             "Tip: Use `df` on this node to check disk usage and "
             "`ray memory` to check object store memory usage."
         )
+
+
+@PublicAPI
+class OutOfMemoryError(RayError):
+    """Indicates that the node is running out of memory and is close to full.
+
+    This is raised if the node is low on memory and tasks or actors are being
+    evicted to free up memory.
+    """
+
+    # TODO: (clarng) expose the error message string here and format it with proto
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
+@PublicAPI
+class NodeDiedError(RayError):
+    """Indicates that the node is either dead or unreachable."""
+
+    # TODO: (clarng) expose the error message string here and format it with proto
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return self.message
 
 
 @PublicAPI
@@ -604,7 +633,7 @@ class RuntimeEnvSetupError(RayError):
         self.error_message = error_message
 
     def __str__(self):
-        msgs = ["Failed to setup runtime environment."]
+        msgs = ["Failed to set up runtime environment."]
         if self.error_message:
             msgs.append(self.error_message)
         return "\n".join(msgs)
